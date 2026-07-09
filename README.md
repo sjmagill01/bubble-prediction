@@ -2,7 +2,7 @@
 
 **A cross-episode survival analysis of U.S. equity bubbles, 1996–2021.**
 
-Samuel Magill — Erdős Institute, Quant Finance Bootcamp, Summer 2026
+Samuel Magill, Erdős Institute, Quant Finance Bootcamp, Summer 2026
 
 ---
 
@@ -17,7 +17,7 @@ evaluates identification and timing with survival models and classifiers under
 a strictly pre-peak, leakage-controlled protocol.
 
 **"Bubble" is defined operationally:** a >40% sector drawdown within 24 months
-of a run-up peak. Some bubbles bounce back such as crypto
+of a run-up peak. Some bubbles bounce back, such as crypto.
 
 ### Headline results
 
@@ -27,20 +27,26 @@ of a run-up peak. Some bubbles bounce back such as crypto
 | Is equity volatility alone enough? | **No.** Vol-only features are indistinguishable from noise (*p* = 0.131). The SEC-text, credit, and interaction channels carry the significance. |
 | Can we time the crash? | **No.** The apparent month-level timing signal (AUC 0.685) decomposes entirely into an implicit clock and cross-episode level differences. Within fixed pre-peak windows, every feature is at chance. |
 | What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
-| Caveats | The +6pp edge over the naïve baseline is **in-era only** — under expanding walk-forward evaluation the un-fitted baseline wins at every temporal cutoff. The signal is also concentrated in the final pre-peak year, which is anchored to a hindsight-known peak. |
+| Caveats | The +6pp edge over the naïve baseline is **in-era only**: under expanding walk-forward evaluation the un-fitted baseline wins at every temporal cutoff. The signal is also concentrated in the final pre-peak year, which is anchored to a hindsight-known peak. |
 
 ### Two bubble regimes
 
 Episodes split by crash mechanism, proxied by sector leverage L = D/(D+E):
 
 - **Leverage bubbles** (banks, homebuilders, shale): debt-funded, crash through
-  balance-sheet stress. The model works here — holding out *fang* drops AUC by 0.13.
+  balance-sheet stress. The model works here: holding out *fang* drops AUC by 0.13.
 - **Mania bubbles** (crypto, SPACs, meme stocks, dotcom): equity-funded, L ≈ 0,
   crash by sentiment reversal. Out-of-distribution for a capital-structure
-  framework — holding out *crypto* *improves* AUC by 0.07.
+  framework: holding out *crypto* *improves* AUC by 0.07.
 
 The model is honestly described as a **leveraged-fragility detector**, not a
 general bubble detector.
+
+**Start here:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
+walks through every headline result with figures rendered inline, and
+[`notebooks/02_case_studies.ipynb`](notebooks/02_case_studies.ipynb) shows the
+multi-channel anatomy of individual episodes. Both run off the data included
+in this repo.
 
 ---
 
@@ -50,7 +56,7 @@ general bubble detector.
 |---|---|---|
 | **Equity-structural (A–F)** | vol ratio, leverage-adjusted vol gap, intra-sector correlation, vol-of-vol, investment intensity, leverage trajectory | CRSP daily returns, Compustat fundamentals; Merton de-levering σ_A ≈ σ_E(1−L) |
 | **SEC textual (G–N)** | sentiment, uncertainty, readability, off-balance-sheet language, risk escalation, growth narrative, filing length trend, negativity | 5,166 10-K/10-Q filings via EDGAR; Loughran–McDonald dictionaries + custom lexicon |
-| **Credit-implied vol (O–S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage — extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV) | TRACE via WRDS; SEC filings |
+| **Credit-implied vol (O–S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage; extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV) | TRACE via WRDS; SEC filings |
 | **Interactions (U–X)** | leverage level, fragility vol (A×L), mania vol (A×(1−L)), fragility instability (D×L) | derived |
 
 ---
@@ -60,6 +66,9 @@ general bubble detector.
 ```
 ├── config.py                  # central config: paths, feature sets, constants
 ├── requirements.txt
+├── notebooks/                 # executed walkthroughs (figures render on GitHub)
+│   ├── 01_main_results.ipynb  #   AUC, permutation test, Cox betas, robustness
+│   └── 02_case_studies.ipynb  #   multi-channel case studies + lead-lag
 ├── src/                       # shared library code
 │   ├── catalog.py             #   episode catalog: 27 bubbles, 42 near-bubbles, 3 targets
 │   ├── vol_measures.py        #   realized vol, correlation, Merton de-levering
@@ -101,7 +110,7 @@ general bubble detector.
 
 ## Data policy (what is and isn't in this repo)
 
-**Included (~30 MB):** all *derived, sector-level* data — the 23 metrics,
+**Included (~30 MB):** all *derived, sector-level* data: the 23 metrics,
 aligned panels, sector-median CIV series, and every model output. Everything
 needed to reproduce the modeling results (steps 06–15) **without any data
 subscriptions**.
@@ -117,7 +126,7 @@ public and fetched directly from the SEC (set your own contact email in
 Consequently:
 - **Full reproduction from raw data**: run scripts 00–15 in order (needs WRDS).
 - **Reproduction of all results in the paper**: run scripts 07–15 (or any
-  subset) against the included panels — no credentials needed.
+  subset) against the included panels; no credentials needed.
 - One exception: the per-fold ridge check in `12_robustness.py` needs the
   firm-level NLP–bond overlap sample (licensed); it skips gracefully if absent.
 
