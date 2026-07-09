@@ -29,24 +29,99 @@ of a run-up peak. Some bubbles bounce back, such as crypto.
 | What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
 | Caveats | The +6pp edge over the naïve baseline is **in-era only**: under expanding walk-forward evaluation the un-fitted baseline wins at every temporal cutoff. The signal is also concentrated in the final pre-peak year, which is anchored to a hindsight-known peak. |
 
-### Two bubble regimes
+**Deeper dives:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
+reproduces every result below from the included data, and
+[`notebooks/02_case_studies.ipynb`](notebooks/02_case_studies.ipynb) walks
+through individual episodes channel by channel.
 
-Episodes split by crash mechanism, proxied by sector leverage L = D/(D+E):
+---
 
-- **Leverage bubbles** (banks, homebuilders, shale): debt-funded, crash through
-  balance-sheet stress. The model works here: holding out *fang* drops AUC by 0.13.
-- **Mania bubbles** (crypto, SPACs, meme stocks, dotcom): equity-funded, L ≈ 0,
-  crash by sentiment reversal. Out-of-distribution for a capital-structure
-  framework: holding out *crypto* *improves* AUC by 0.07.
+## The results in six figures
+
+### 1. Identification works, but the baseline is the story
+
+Episode-level AUC across leverage-stratified 80/20 holdout splits: given a
+sector mid-rally, will it crash or fade? Two reference lines matter: 0.5 is
+chance, and **0.780** is a naive baseline that scores episodes by the single
+vol-ratio metric with *no fitting at all*. Any model has to beat the
+baseline, not chance.
+
+![Episode AUC distributions](figures/fig_episode_auc_dist.png)
+
+Logistic regression with all 23 features reaches a median episode AUC of
+**0.844**, about 6pp above the baseline. Tree-based survival models plateau
+at the baseline; vol-only features sit *below* it. A permutation test
+(10,000 splits × 500 label shuffles, 5M null values) puts the full model at
+*p* = 0.033 while vol-only fails at *p* = 0.131: equity volatility alone
+carries no episode-level signal.
+
+### 2. What predicts crashes is not what theory suggests
+
+Cox proportional-hazards coefficients (per 1 SD, medians and 95% intervals
+across holdout splits). Red bars exclude zero.
+
+![Cox coefficients](figures/fig_cox_coefficients.png)
+
+- **Risk-escalation language (K)** is the strongest predictor, and it is
+  *negative*: firms that escalate risk disclosures crash less. Transparency
+  helps.
+- **Off-balance-sheet language (J)** is the strongest positive: opacity
+  predicts crashes.
+- **Intra-sector correlation (C)**, the textbook "herding" signal, is noise.
+- **Rising leverage (F)** is negative: leverage growth marks expansion, not
+  imminent danger. Leverage *level* matters instead, via interactions.
+
+### 3. The honest caveat: no out-of-era edge
+
+Expanding walk-forward evaluation: train only on episodes that peaked before
+each cutoff, test on later ones. The un-fitted baseline beats the trained
+model at every cutoff. The +6pp edge is an in-era, cross-sectional finding,
+not a forward-deployable one at this sample size.
+
+![Walk-forward](figures/fig_robustness_walk_forward.png)
+
+### 4. The result is not an artifact of the 40% threshold
+
+The 40% drawdown cutoff defining "bubble" is a choice. Sweeping it from 30%
+to 50% relabels episodes; median AUC stays above 0.82 for thresholds of
+35–50%. (A companion check lags all Compustat inputs by 0–90 days to respect
+reporting delays; AUC is flat, see `figures/fig_robustness_compustat_lag.png`.)
+
+![Threshold sensitivity](figures/fig_robustness_threshold.png)
+
+### 5. Two bubble regimes
+
+Left: split-level AUC with CVaR tail markers. Right: leave-one-episode-out
+impact on AUC, the clearest evidence that episodes split into two regimes by
+crash mechanism, proxied by sector leverage L = D/(D+E):
+
+- **Leverage bubbles** (banks, homebuilders, shale): debt-funded, crash
+  through balance-sheet stress. The model works here: holding out *fang*
+  drops AUC by 0.13.
+- **Mania bubbles** (crypto, SPACs, meme stocks, dotcom): equity-funded,
+  L ≈ 0, crash by sentiment reversal. Out-of-distribution for a
+  capital-structure framework: holding out *crypto* *improves* AUC by 0.07.
+
+![CVaR and episode impact](figures/fig_cvar_and_impact.png)
 
 The model is honestly described as a **leveraged-fragility detector**, not a
 general bubble detector.
 
-**Start here:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
-walks through every headline result with figures rendered inline, and
-[`notebooks/02_case_studies.ipynb`](notebooks/02_case_studies.ipynb) shows the
-multi-channel anatomy of individual episodes. Both run off the data included
-in this repo.
+### 6. Multi-channel anatomy
+
+Four leverage bubbles seen through all three channels, aligned on months
+relative to the run-up peak (red line). No single channel is reliable, but
+*disagreement between channels is informative*: in the GFC banks panel,
+equity vol stays calm into the peak while credit-implied vol creeps up and
+filing negativity rises.
+
+![Multi-channel case studies](figures/fig7_multichannel_cases.png)
+
+Lead-lag cross-correlations between channels are modest and roughly
+symmetric (`figures/fig9_lead_lag.png`): the channels carry complementary
+*cross-sectional* information (which sectors are fragile), not *sequential*
+information (when the crash comes). This is the same message as the timing
+null.
 
 ---
 
@@ -56,7 +131,7 @@ in this repo.
 |---|---|---|
 | **Equity-structural (A–F)** | vol ratio, leverage-adjusted vol gap, intra-sector correlation, vol-of-vol, investment intensity, leverage trajectory | CRSP daily returns, Compustat fundamentals; Merton de-levering σ_A ≈ σ_E(1−L) |
 | **SEC textual (G–N)** | sentiment, uncertainty, readability, off-balance-sheet language, risk escalation, growth narrative, filing length trend, negativity | 5,166 10-K/10-Q filings via EDGAR; Loughran–McDonald dictionaries + custom lexicon |
-| **Credit-implied vol (O–S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage; extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV) | TRACE via WRDS; SEC filings |
+| **Credit-implied vol (O–S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage; extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV, see `figures/fig_text_vs_bond_civ.png`) | TRACE via WRDS; SEC filings |
 | **Interactions (U–X)** | leverage level, fragility vol (A×L), mania vol (A×(1−L)), fragility instability (D×L) | derived |
 
 ---
