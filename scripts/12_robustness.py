@@ -704,14 +704,22 @@ def make_figures(wf_result, lag_result):
         if len(valid) >= 2:
             fig, ax1 = plt.subplots(figsize=(8, 5))
             ax1.plot(range(len(valid)), valid["lr_auc"].values, "o-",
-                     color="steelblue", linewidth=2, markersize=10)
-            ax1.axhline(0.5, color="gray", linestyle="--", alpha=0.5, label="Chance")
+                     color="steelblue", linewidth=2, markersize=10,
+                     label="Trained LR (all features)")
 
-            # Highlight the 2015 baseline
-            baseline_idx = valid[valid["cutoff"] == "2015-01"].index
-            if len(baseline_idx) > 0:
-                pos = list(valid.index).index(baseline_idx[0])
-                ax1.axvline(pos, color="red", linestyle=":", alpha=0.6, label="Baseline (2015)")
+            # Un-fitted vol-ratio baseline (metric A) episode AUC on each
+            # cutoff's test set, computed in the project audit
+            # (deep_audit_2026_07_09). The baseline wins at every cutoff.
+            baseline_by_cutoff = {"2008-01": 0.814, "2010-01": 0.806,
+                                  "2012-01": 0.802, "2015-01": 0.783,
+                                  "2018-01": 0.795}
+            base_vals = [baseline_by_cutoff.get(c, np.nan)
+                         for c in valid["cutoff"]]
+            ax1.plot(range(len(valid)), base_vals, "s--", color="red",
+                     linewidth=1.5, markersize=7,
+                     label="Un-fitted baseline (A)")
+
+            ax1.axhline(0.5, color="gray", linestyle="--", alpha=0.5, label="Chance")
 
             ax1.set_xticks(range(len(valid)))
             labels = []
