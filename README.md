@@ -8,7 +8,7 @@ Samuel Magill — Erdős Institute, Quant Finance Bootcamp, Summer 2026
 
 ## What this project does
 
-Can speculative bubbles be identified — and timed — before they crash? This
+Can speculative bubbles be identified (and timed?) before they crash? This
 repository builds a catalog of **27 U.S. bubble episodes** (dot-com, GFC banks,
 homebuilders, shale, SPACs, crypto-adjacent equities, meme stocks, ...) and
 **42 near-bubble controls** (sectors that rallied 50%+ but did *not* crash),
@@ -17,7 +17,7 @@ evaluates identification and timing with survival models and classifiers under
 a strictly pre-peak, leakage-controlled protocol.
 
 **"Bubble" is defined operationally:** a >40% sector drawdown within 24 months
-of a run-up peak — a statement about crash realization, not irrationality.
+of a run-up peak. Some bubbles bounce back such as crypto
 
 ### Headline results
 
