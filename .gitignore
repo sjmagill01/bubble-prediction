@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Raw / licensed data — never committed.
+# These directories are rebuilt by the fetch scripts (00-03) and contain
+# WRDS-licensed (CRSP, Compustat, TRACE) or bulk EDGAR data.
+data/raw/
+data/sec/
+data/options/
+data/civ/bondret_raw.parquet
+data/civ/civ_panel.parquet
+data/civ/issuer_cusip_mapping.parquet
+
+# Backups / scratch
+*.bak
+*.log
+.DS_Store
