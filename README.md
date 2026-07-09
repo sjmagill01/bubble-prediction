@@ -170,10 +170,3 @@ this kind of analysis fools itself.
 5. **Honest negatives, disclosed.** No out-of-era edge under walk-forward;
    signal concentrated in the late pre-peak window; Bonferroni-adjusted
    *p* ≈ 0.066 across the two feature sets tested.
-
-## Citation
-
-If you use the episode catalog or the text-CIV construction, please cite:
-
-> Magill, S. (2026). *Volatility Signatures of Speculative Bubbles: A
-> Cross-Episode Survival Analysis.* Erdős Institute Quant Finance Bootcamp.
