@@ -26,7 +26,7 @@ of a run-up peak. Some bubbles bounce back such as crypto
 | Can we identify which rallying sectors will crash? | **Yes, modestly.** LR with all 23 features: episode AUC **0.844** (permutation *p* = 0.033, 10,000 splits × 500 shuffles). Naïve baseline (vol ratio alone): 0.780. |
 | Is equity volatility alone enough? | **No.** Vol-only features are indistinguishable from noise (*p* = 0.131). The SEC-text, credit, and interaction channels carry the significance. |
 | Can we time the crash? | **No.** The apparent month-level timing signal (AUC 0.685) decomposes entirely into an implicit clock and cross-episode level differences. Within fixed pre-peak windows, every feature is at chance. |
-| What predicts crashes? | Not what theory suggests. Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
+| What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
 | Caveats | The +6pp edge over the naïve baseline is **in-era only** — under expanding walk-forward evaluation the un-fitted baseline wins at every temporal cutoff. The signal is also concentrated in the final pre-peak year, which is anchored to a hindsight-known peak. |
 
 ### Two bubble regimes
