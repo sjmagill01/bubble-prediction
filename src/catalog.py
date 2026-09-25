@@ -245,7 +245,7 @@ NEAR_BUBBLES = [
 
 TARGETS = [
     _bubble("AI", "AI Semiconductors", (2023, None, None), None,
-            "capex", None, ["NVDA", "AMD", "AVGO", "SMCI", "MSFT", "AMZN", "GOOGL", "META", "MRVL", "ARM"]),
+            "mania", None, ["NVDA", "AMD", "AVGO", "SMCI", "MSFT", "AMZN", "GOOGL", "META", "MRVL", "ARM"]),
     _bubble("quantum", "Quantum Computing", (2024, None, None), None,
             "mania", None, ["IONQ", "RGTI", "QBTS"]),
     _bubble("nuclear2", "Nuclear Renaissance II", (2023, None, None), None,

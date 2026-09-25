@@ -474,10 +474,18 @@ def score_targets(ep_df, base_cols, best_C_global):
     )
     m.fit(X_tr, ep_df["is_bubble"].values)
 
+    # Build category lookup from catalog (authoritative; panel may be stale)
+    try:
+        from src.catalog import get_targets
+        cat_lookup = {e["id"]: e["category"] for e in get_targets()}
+    except Exception:
+        cat_lookup = {}
+
     out = {}
     for eid in target_panel["episode_id"].unique():
         tdf = target_panel[target_panel["episode_id"] == eid].copy()
-        cat = tdf["category"].iloc[0]
+        # Prefer catalog category over panel column (panel may predate reclassification)
+        cat = cat_lookup.get(eid, tdf["category"].iloc[0])
         regime = REGIME_MAP[cat]
         regime_mania = float(regime == "mania")
 

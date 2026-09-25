@@ -28,7 +28,7 @@ of a run-up peak. Some bubbles bounce back, such as crypto.
 | Can we time the crash? | **No.** The apparent month-level timing signal (AUC 0.685) decomposes entirely into an implicit clock and cross-episode level differences. Within fixed pre-peak windows, every feature is at chance. |
 | What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
 | Does the model generalize across time? | **Yes, once regime structure is explicit.** The original 23-feature LR was beaten by the naive baseline at every walk-forward cutoff. Incorporating the two-regime structure (leverage vs. mania) with LASSO regularization restores walk-forward AUC to **0.850** at the 2015 cutoff (+9pp vs. original LR, +7pp vs. naive). See Section 3. |
-| What do ongoing targets look like? | Quantum computing and Nuclear Renaissance II score near 1.0 on the regime-LASSO; AI Semiconductors scores 0.22. See Section 6. |
+| What do ongoing targets look like? | All three score high once AI is reclassified as mania (0.90) rather than capex (0.22). Quantum and Nuclear Renaissance II score near 1.0. See Section 6. |
 
 **Deeper dives:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
 reproduces every result below from the included data, and
@@ -153,9 +153,18 @@ rolling 12-month trailing mean of the 47-feature vector.
 
 | Target | Regime | Latest score (2024-12) | Reading |
 |--------|--------|------------------------|---------|
-| AI Semiconductors | leverage (capex) | **0.22** | Below historical bubble zone |
+| AI Semiconductors | mania | **0.90** | Deep in historical bubble zone |
 | Nuclear Renaissance II | leverage (capex) | **1.00** | Extreme — balance-sheet stress signatures |
 | Quantum Computing | mania | **1.00** | Extreme — sentiment/vol signatures |
+
+**Note on AI's regime assignment:** the catalog originally classified AI as
+"capex" (→ leverage regime) because NVDA/AMD have real datacenter capex
+intensity. But the dominant crash mechanism for AI would be sentiment reversal
+— the same as dotcom, crypto, and SPACs — not balance-sheet stress, since
+these firms carry strong balance sheets. Reclassifying AI as "mania" raises
+its score from 0.22 to 0.90: the mania-regime features (extreme vol ratio,
+narrative-driven filings, low leverage) match better than the leverage-regime
+ones did.
 
 A score near 1.0 does not predict *when* a crash occurs — the timing null
 (Section 1) still applies. It indicates that the sector's current
