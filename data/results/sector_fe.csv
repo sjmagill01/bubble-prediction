@@ -1,0 +1,2 @@
+cox_auc_raw_median,cox_auc_demeaned_median,beta_k_raw_median,beta_k_demeaned_median,beta_j_raw_median,beta_j_demeaned_median,pct_beta_k_neg_demeaned,pct_beta_j_pos_demeaned,wilcoxon_p_demeaned_vs_naive,n_splits
+0.7333333333333334,0.6222222222222222,-0.290758404879063,-0.13457134333493104,0.23465125199233355,0.03015089998983074,0.995,0.775,1.0,200
