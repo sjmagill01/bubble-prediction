@@ -8,16 +8,21 @@ Samuel Magill — Erdős Institute Quant Finance Bootcamp, Summer 2026
 
 ## What this project does
 
-Can speculative bubbles be identified before they crash? This repository
-builds a catalog of **27 U.S. bubble episodes** (dot-com, GFC banks,
-homebuilders, shale, SPACs, crypto-adjacent equities, meme stocks, ...) and
-**42 near-bubble controls** (sectors that rallied 50%+ but did *not* crash),
-constructs **23 monthly metrics** across three information channels, and
-evaluates identification and timing with survival models and classifiers under
-a strictly pre-peak, leakage-controlled protocol.
+Most speculative bubbles only look obvious in hindsight. The question here is
+harder: given a sector mid-rally, pre-peak, can you tell whether it will crash
+or fade? Not in hindsight, not with post-peak data — just with what you could
+have known at the time.
+
+This repository builds a catalog of **27 U.S. bubble episodes** (dot-com, GFC
+banks, homebuilders, shale, SPACs, crypto-adjacent equities, meme stocks, ...)
+paired against **42 near-bubble controls** (sectors that rallied 50%+ but did
+*not* crash), constructs **23 monthly metrics** across three information
+channels, and evaluates identification under a strictly pre-peak,
+leakage-controlled protocol.
 
 **"Bubble" is defined operationally:** a >40% sector drawdown within 24 months
-of a run-up peak. Some bubbles bounce back, such as crypto.
+of a run-up peak. Some bubbles bounce back, such as crypto. The definition is
+narrow by design: near-miss controls are hard, and that difficulty is the point.
 
 ### Headline results
 
@@ -41,67 +46,78 @@ through individual episodes channel by channel.
 
 ### 1. Identification: the baseline is the real benchmark
 
-Episode-level AUC across leverage-stratified 80/20 holdout splits: given a
-sector mid-rally, will it crash or fade? Two reference lines matter: 0.5 is
-chance, and **0.780** is a naive baseline that scores episodes by the single
-vol-ratio metric with *no fitting at all*. Any model has to beat the
-baseline, not chance.
+The question is episode-level: given a sector mid-rally, will it crash or fade?
+Two reference lines matter: **0.5** is chance, and **0.780** is a naive
+baseline that scores episodes by the single vol-ratio metric with *no fitting
+at all*. Any model has to beat the baseline, not chance — a model that just
+memorizes which sectors tend to be volatile would achieve 0.780 without learning
+anything structural.
 
 ![Episode AUC distributions](figures/fig_episode_auc_dist.png)
 
 Logistic regression with all 23 features reaches a median episode AUC of
-**0.844**, about 6pp above the baseline. Tree-based survival models plateau
-at the baseline; vol-only features sit *below* it. The regime-LASSO
-(47-feature, right panel) reaches a median of **0.875** across 80/20 splits
-with C selected by LOO-CV. A permutation test (10,000 splits x 500 label
-shuffles, 5M null values) puts the full model at *p* = 0.033 while vol-only
-fails at *p* = 0.131: equity volatility alone carries no episode-level signal.
+**0.844** — about 6pp above the baseline. Tree-based survival models plateau
+at the baseline; vol-only features sit *below* it. The regime-LASSO (47-feature,
+right panel) reaches a median of **0.875** across leverage-stratified 80/20
+splits. A permutation test (10,000 splits x 500 label shuffles, 5M null values)
+puts the full model at *p* = 0.033. Vol-only features fail at *p* = 0.131:
+equity volatility alone carries no episode-level signal above what the naive
+baseline already captures.
 
 ### 2. Two crash mechanisms
 
-The catalog contains two mechanistically distinct crash types. **Leverage
-bubbles** (banks, homebuilders, shale) are debt-funded and crash through
-balance-sheet stress. **Mania bubbles** (crypto, SPACs, dotcom) are
-equity-funded and crash by sentiment reversal. Sector median leverage
-L = D/(D+E) cleanly separates them: leverage bubbles cluster at L > 0.4,
-mania bubbles at L near zero.
+Not all bubbles crash for the same reason, and that turns out to matter for
+prediction. **Leverage bubbles** (banks, homebuilders, shale) are debt-funded
+and crash through balance-sheet stress: when the asset value drops, the equity
+is wiped out. **Mania bubbles** (crypto, SPACs, dotcom) are equity-funded and
+crash by sentiment reversal: no debt covenant triggers the fall, just a
+collective change of mind. Sector median leverage L = D/(D+E) cleanly separates
+them: leverage bubbles cluster at L > 0.4, mania bubbles at L near zero.
 
 ![CVaR and episode impact](figures/fig_cvar_and_impact.png)
 
-The per-episode LOO impact analysis makes the split concrete: holding out
-*fang* (mania bubble) drops AUC by 0.13; the model needs it. Holding
-out *crypto* (mania bubble) *improves* AUC by 0.07; crypto is
-out-of-distribution for a capital-structure framework. Mania bubbles are
-not penalized by balance-sheet stress; they crash by sentiment reversal,
-and the same metrics that predict leverage crashes are noise for mania crashes.
+The per-episode LOO impact analysis makes this split concrete. Holding out
+*fang* (mania bubble) drops AUC by 0.13 — the model genuinely needs it.
+Holding out *crypto* (mania bubble) *improves* AUC by 0.07 — crypto is
+out-of-distribution for a capital-structure model. Both episodes are mania
+bubbles, but the model treats them differently because fang's filing signatures
+match the training distribution and crypto's don't.
 
 ![Regime motivation](figures/fig_regime_motivation.png)
 
-Left panel: LOO impact vs sector leverage. Right panel: leverage distributions
-by regime. The regime split is empirical, not asserted: it falls out of the
-LOO analysis before any regime encoding is applied.
+The left panel plots per-episode LOO impact against sector leverage. The regime
+split falls out of this analysis — no regime label was imposed to produce it.
+The right panel shows leverage distributions by regime: the two populations
+barely overlap. The regime split is empirical, not asserted.
 
-The model is honestly described as a **leveraged-fragility detector**, not a
-general bubble detector. This observation directly motivates the regime-aware
-LASSO (Section 4): encoding the regime as an explicit indicator with
-interaction terms lets the model learn separate linear programs for each
-crash mechanism.
+This is an honest assessment of the model's scope. It is a **leveraged-fragility
+detector** first, a mania detector second. The observation directly motivates
+the regime-aware LASSO in Section 4: encoding the regime explicitly lets the
+model learn separate linear programs for each crash mechanism rather than
+averaging across them.
 
 ### 3. What predicts crashes is not what theory suggests
 
-Cox proportional-hazards coefficients (per 1 SD, medians and 95% intervals
-across holdout splits). Red bars exclude zero.
+Standard bubble theory points to herding (rising intra-sector correlation),
+rising leverage, and accelerating risk. The data disagrees with all three.
+Cox proportional-hazards coefficients below show medians and 95% intervals
+across holdout splits; red bars exclude zero.
 
 ![Cox coefficients](figures/fig_cox_coefficients.png)
 
-- **Risk-escalation language (K)** is the strongest predictor, and it is
-  *negative*: firms that escalate risk disclosures crash less. Transparency
-  helps.
-- **Off-balance-sheet language (J)** is the strongest positive predictor:
-  opacity predicts crashes.
-- **Intra-sector correlation (C)**, the textbook "herding" signal, is noise.
-- **Rising leverage (F)** is negative: leverage growth marks expansion, not
-  imminent danger. Leverage *level* matters instead, via interactions.
+Four findings stand out, and none match the textbook story:
+
+- **Risk-escalation language (K)** is the strongest predictor — and it is
+  *negative*. Firms that escalate risk disclosures in their 10-K filings crash
+  *less* often. Transparency appears to be a safety valve, not a warning sign.
+- **Off-balance-sheet language (J)** is the strongest positive predictor.
+  Opacity about liabilities predicts crashes better than any market signal.
+- **Intra-sector correlation (C)** — the textbook "herding" signal — is noise.
+  Sectors herd during both bubbles and sustained growth phases; the signal
+  does not discriminate.
+- **Rising leverage (F)** is *negative*: leverage growth marks expansion, not
+  imminent danger. What matters is the leverage *level*, captured by the
+  interaction terms, not the rate of change.
 
 ### 4. Walk-forward arc: failure, diagnosis, fix
 
@@ -153,44 +169,56 @@ rows look bad.
 
 ### 5. Multi-channel anatomy
 
-Four leverage bubbles seen through all three channels, aligned on months
-relative to the run-up peak (red line). No single channel is reliable, but
-*disagreement between channels is informative*: in the GFC banks panel,
-equity vol stays calm into the peak while credit-implied vol creeps up and
-filing negativity rises.
+The three information channels — equity vol structure, SEC filing language, and
+credit-implied vol — are not measuring the same thing. That is by design, and
+it is what makes the combination work. The case study figure below shows four
+leverage bubbles through all three channels, aligned on months relative to the
+run-up peak (red line).
 
 ![Multi-channel case studies](figures/fig7_multichannel_cases.png)
 
-Lead-lag cross-correlations between channels confirm why: the channels carry
-complementary *cross-sectional* information (which sectors are fragile), not
-*sequential* information (when the crash comes).
+No single channel is reliable on its own — equity vol, for instance, often
+stays calm deep into the bubble while credit spreads slowly widen and filing
+language darkens. The GFC banks panel illustrates this most clearly. The
+channels disagree, and that disagreement is the signal: a sector where equity
+vol is calm but credit stress is rising and opacity is increasing sits in a
+structurally different position than one where all channels are quiet.
+
+Lead-lag cross-correlations between channels confirm why:
 
 ![Lead-lag cross-correlations](figures/fig9_lead_lag.png)
 
-Channel cross-correlations are modest and roughly symmetric. This is the same
-message as the timing null: no channel leads another reliably enough to use
-for timing.
+Cross-correlations are modest and roughly symmetric — no channel consistently
+leads another. This is the same message as the timing null: the channels carry
+complementary *cross-sectional* information (which sectors are fragile) rather
+than *sequential* information (when the crash will come). Combining them
+improves identification; using any single one for timing does not work.
 
 ### 6. Robustness
 
-The 40% drawdown cutoff defining "bubble" is a choice. Sweeping it from 30%
-to 50% relabels episodes; median AUC stays above 0.82 for thresholds of
-35-50%.
+Two choices embedded in the design could be questioned, and both are tested
+directly.
+
+**The 40% drawdown definition.** The boundary between "bubble" and "near-bubble"
+is arbitrary. Sweeping it from 30% to 50% relabels borderline episodes at each
+threshold and reshuffles the training set. Median AUC stays above 0.82 for
+thresholds of 35-50%, confirming the result is not tuned to the 40% cutoff.
 
 ![Threshold sensitivity](figures/fig_robustness_threshold.png)
 
-A companion check lags all Compustat inputs by 0-90 days to respect reporting
-delays; AUC is flat (see `figures/fig_robustness_compustat_lag.png`). Both
-checks confirm the result is not an artifact of the threshold choice or of
-using data before it is publicly available.
+**Reporting delays.** Compustat fundamentals are published with a lag; using
+them on the publication date rather than the filing date could introduce
+look-ahead. Lagging all Compustat inputs by 0-90 days leaves AUC flat
+(see `figures/fig_robustness_compustat_lag.png`). The signal is not coming
+from data that was unavailable at the time.
 
 ### 7. Ongoing targets
 
 Regime-LASSO bubble probability for three ongoing speculative sectors,
-scored using the full-sample trained model. Each trajectory is a
-rolling 12-month trailing mean of the 47-feature vector. Reference lines
-are computed from the full-sample LOO: bubble median and near-bubble IQR
-over all 69 training episodes.
+scored using the full-sample trained model. Each trajectory is a rolling
+12-month trailing mean of the 47-feature vector. Reference lines are the
+full-sample LOO bubble median (0.79) and near-bubble IQR (0.02-0.32) across
+all 69 training episodes.
 
 | Target | Regime | Latest score (2024-12) | Reading |
 |--------|--------|------------------------|---------|
@@ -199,17 +227,19 @@ over all 69 training episodes.
 | Quantum Computing | mania | **1.00** | Extreme: sentiment/vol signatures |
 
 **Note on AI's regime assignment:** the catalog originally classified AI as
-"capex" (-> leverage regime) because NVDA/AMD have real datacenter capex
-intensity. But the dominant crash mechanism for AI would be sentiment reversal
-the same as dotcom, crypto, and SPACs, not balance-sheet stress: these firms carry strong balance sheets. Reclassifying AI as "mania" raises
-its score from 0.22 to 0.90: the mania-regime features (extreme vol ratio,
-narrative-driven filings, low leverage) match better than the leverage-regime
-ones did.
+"capex" (leverage regime) because NVDA/AMD have real datacenter capex
+intensity. But the dominant crash mechanism would be sentiment reversal —
+the same as dotcom, crypto, and SPACs — not balance-sheet stress: these firms
+carry strong balance sheets with minimal debt. Reclassifying AI as "mania"
+raises its score from 0.22 to 0.90. The mania-regime features (extreme vol
+ratio, narrative-driven filings, low leverage) match far better than the
+leverage-regime ones did. The 0.22 score was not a signal about AI; it was
+the model correctly noticing that AI firms do not look like GFC banks.
 
 A score near 1.0 does not predict *when* a crash occurs: the timing null
-(Section 1) still applies. It indicates that the sector's current
-multi-channel signal pattern resembles historical bubble episodes in
-the same regime more than it resembles near-bubble controls.
+(Section 1) still applies. It indicates that the sector's current multi-channel
+signal pattern resembles historical bubble episodes in the same regime more
+than it resembles near-bubble controls.
 
 ![Target scores](figures/fig_target_regime_scores.png)
 
@@ -217,12 +247,19 @@ the same regime more than it resembles near-bubble controls.
 
 ## The 23 metrics (three channels)
 
+The three channels are designed to capture different aspects of fragility.
+Equity-structural metrics measure the volatility and leverage signatures
+visible in market prices. SEC textual metrics measure what management is
+actually saying about risk, opacity, and growth in regulatory filings. Credit-
+implied vol converts bond spreads into an equity-vol-equivalent using the
+Merton model, giving a credit-market view of the same firms.
+
 | Channel | Metrics | Source |
 |---|---|---|
 | **Equity-structural (A-F)** | vol ratio, leverage-adjusted vol gap, intra-sector correlation, vol-of-vol, investment intensity, leverage trajectory | CRSP daily returns, Compustat fundamentals; Merton de-levering sigma_A = sigma_E(1-L) |
 | **SEC textual (G-N)** | sentiment, uncertainty, readability, off-balance-sheet language, risk escalation, growth narrative, filing length trend, negativity | 5,166 10-K/10-Q filings via EDGAR; Loughran-McDonald dictionaries + custom lexicon |
 | **Credit-implied vol (O-S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage; extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV, see `figures/fig_text_vs_bond_civ.png`) | TRACE via WRDS; SEC filings |
-| **Interactions (U-X)** | leverage level, fragility vol (A*L), mania vol (A*(1-L)), fragility instability (D*L) | derived |
+| **Interactions (U-X)** | leverage level, fragility vol (A*L), mania vol (A*(1-L)), fragility instability (D*L) | derived from above |
 
 ---
 
@@ -342,16 +379,22 @@ this kind of analysis fools itself.
 1. **Pre-peak data only.** An earlier design that included post-peak data
    inflated AUC to 0.875 and produced theory-friendly coefficients (rising
    leverage, spiking correlation) that were pure artifacts of post-crash
-   liquidation. Removing contamination flipped both signs.
+   liquidation. Removing contamination flipped both signs. This is the most
+   common failure mode in bubble studies.
 2. **Train-only statistics.** Standardization and imputation are fit on the
-   training fold only.
+   training fold only. Fitting on the full dataset lets the test set's
+   distribution inform the training transform, which is a subtle form of
+   leakage that compounds across many splits.
 3. **Leverage-stratified holdout.** Unstratified splits swing AUC 0.37-0.97
-   depending on which regime lands in the test set.
-4. **Permutation testing.** 10,000 splits x 500 label shuffles. Vol-only
+   depending on which regime lands in the test set. A randomly assigned test
+   set of pure mania episodes evaluated on a leverage-trained model will look
+   terrible; the reverse looks great. Stratification makes the comparison fair.
+4. **Permutation testing.** 10,000 splits x 500 label shuffles builds a null
+   distribution from the actual data structure, not asymptotic theory. Vol-only
    features fail this test; only the multi-channel model passes.
 5. **Honest negatives, disclosed.** No out-of-era edge under walk-forward;
    signal concentrated in the late pre-peak window; Bonferroni-adjusted
    *p* = 0.066 across the two feature sets tested.
 6. **Regime-aware regularization.** LOO-CV C selection is performed on
    training episodes only at each walk-forward cutoff. The regime indicator
-   is encoded from catalog metadata, not derived from data.
+   is encoded from catalog metadata, not derived from the data being modeled.
