@@ -69,7 +69,7 @@ mania bubbles at L near zero.
 ![CVaR and episode impact](figures/fig_cvar_and_impact.png)
 
 The per-episode LOO impact analysis makes the split concrete: holding out
-*fang* (leverage bubble) drops AUC by 0.13; the model needs it. Holding
+*fang* (mania bubble) drops AUC by 0.13; the model needs it. Holding
 out *crypto* (mania bubble) *improves* AUC by 0.07; crypto is
 out-of-distribution for a capital-structure framework. Mania bubbles are
 not penalized by balance-sheet stress; they crash by sentiment reversal,
