@@ -1,0 +1,2 @@
+n_splits,median_lr_auc,median_naive_auc,median_gap,gap_ci_lo,gap_ci_hi,pct_splits_lr_beats_naive,wilcoxon_stat,wilcoxon_p,effect_mu,effect_sigma
+1000,0.8444444444444446,0.8,0.04444444444444451,0.0444444444444444,0.06666666666666654,0.6,302551.5,7.713605644327365e-19,0.04327777777777777,0.15190233013760707
