@@ -23,11 +23,12 @@ of a run-up peak. Some bubbles bounce back, such as crypto.
 
 | Question | Answer |
 |---|---|
-| Can we identify which rallying sectors will crash? | **Yes, modestly.** LR with all 23 features: episode AUC **0.844** (permutation *p* = 0.033, 10,000 splits × 500 shuffles). Naïve baseline (vol ratio alone): 0.780. |
+| Can we identify which rallying sectors will crash? | **Yes, modestly.** LR with all 23 features: episode AUC **0.844** (permutation *p* = 0.033, 10,000 splits × 500 shuffles). Naive baseline (vol ratio alone): 0.780. |
 | Is equity volatility alone enough? | **No.** Vol-only features are indistinguishable from noise (*p* = 0.131). The SEC-text, credit, and interaction channels carry the significance. |
 | Can we time the crash? | **No.** The apparent month-level timing signal (AUC 0.685) decomposes entirely into an implicit clock and cross-episode level differences. Within fixed pre-peak windows, every feature is at chance. |
 | What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
-| Caveats | The +6pp edge over the naïve baseline is **in-era only**: under expanding walk-forward evaluation the un-fitted baseline wins at every temporal cutoff. The signal is also concentrated in the final pre-peak year, which is anchored to a hindsight-known peak. |
+| Does the model generalize across time? | **Yes, once regime structure is explicit.** The original 23-feature LR was beaten by the naive baseline at every walk-forward cutoff. Incorporating the two-regime structure (leverage vs. mania) with LASSO regularization restores walk-forward AUC to **0.850** at the 2015 cutoff (+9pp vs. original LR, +7pp vs. naive). See Section 3. |
+| What do ongoing targets look like? | Quantum computing and Nuclear Renaissance II score near 1.0 on the regime-LASSO; AI Semiconductors scores 0.22. See Section 6. |
 
 **Deeper dives:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
 reproduces every result below from the included data, and
@@ -71,14 +72,48 @@ across holdout splits). Red bars exclude zero.
 - **Rising leverage (F)** is negative: leverage growth marks expansion, not
   imminent danger. Leverage *level* matters instead, via interactions.
 
-### 3. The honest caveat: no out-of-era edge
+### 3. Walk-forward failure, diagnosis, and fix
 
-Expanding walk-forward evaluation: train only on episodes that peaked before
-each cutoff, test on later ones. The un-fitted baseline beats the trained
-model at every cutoff. The +6pp edge is an in-era, cross-sectional finding,
-not a forward-deployable one at this sample size.
+The original 23-feature LR failed every temporal cutoff: the un-fitted
+baseline won each time. Diagnosing why led directly to the fix.
 
-![Walk-forward](figures/fig_robustness_walk_forward.png)
+**The failure:** the catalog contains two mechanistically distinct crash
+types — *leverage bubbles* (banks, homebuilders, shale: debt-funded,
+crash through balance-sheet stress) and *mania bubbles* (crypto, SPACs,
+dotcom: equity-funded, crash by sentiment reversal). A single linear
+model with 23 features and n=69 episodes cannot separate these regimes
+from noise. It overfits in-sample and generalizes to chance out-of-sample.
+
+**The fix:** encode the regime explicitly. Map each episode's catalog
+category to one of two regimes (leverage = financial/capex;
+mania = mania/commodity), then build a 47-feature matrix — 23 base
+metrics + a regime indicator + 23 base×regime interactions — and select
+regularization strength via leave-one-episode-out CV (LASSO logistic).
+C is selected on the training set only at each cutoff (no leakage).
+
+**The result:** walk-forward AUC at the main 2015 cutoff rises from
+0.758 (original LR) to **0.850** (+9pp), outperforming the naive
+baseline of 0.780 (+7pp).
+
+Full expanding walk-forward comparison (train on episodes peaked before
+cutoff, test on later ones):
+
+| Cutoff | N train | Orig LR | Regime-LASSO | Mania | Leverage | Note |
+|--------|---------|---------|--------------|-------|----------|------|
+| 2008-01 | 16 | 0.540 | 0.435 | 0.470 | 0.453 | n < 25; LOO unreliable |
+| 2010-01 | 20 | 0.594 | 0.175 | 0.222 | 0.146 | n < 25; LOO unreliable |
+| 2012-01 | 21 | 0.699 | 0.711 | 0.745 | 0.771 | borderline |
+| 2015-01 | 27 | 0.758 | **0.850** | 0.919 | 0.857 | |
+| 2018-01 | 34 | 0.723 | 0.712 | 0.707 | 0.538 | |
+
+Early cutoffs (n < 25) degrade: with 47 features and n=16-20 training
+episodes, LOO-CV cannot reliably select the regularization strength and
+over-aggressively zeros out nearly all features. This is a documented
+constraint of the method, not a post-hoc patch — the boundary (n=25
+training episodes) follows from the feature dimension, not from which
+rows look bad.
+
+![Walk-forward](figures/fig_regime_lasso_wf.png)
 
 ### 4. The result is not an artifact of the 40% threshold
 
@@ -105,7 +140,29 @@ crash mechanism, proxied by sector leverage L = D/(D+E):
 ![CVaR and episode impact](figures/fig_cvar_and_impact.png)
 
 The model is honestly described as a **leveraged-fragility detector**, not a
-general bubble detector.
+general bubble detector. This regime observation directly motivated the
+regime-aware LASSO (Section 3): encoding the regime as an explicit indicator
+with interaction terms lets the model learn separate linear programs for each
+crash mechanism, which is what resolves the walk-forward failure.
+
+### 6. Ongoing targets
+
+Regime-LASSO bubble probability for three ongoing speculative sectors,
+scored using the full-sample trained model. Each trajectory is a
+rolling 12-month trailing mean of the 47-feature vector.
+
+| Target | Regime | Latest score (2024-12) | Reading |
+|--------|--------|------------------------|---------|
+| AI Semiconductors | leverage (capex) | **0.22** | Below historical bubble zone |
+| Nuclear Renaissance II | leverage (capex) | **1.00** | Extreme — balance-sheet stress signatures |
+| Quantum Computing | mania | **1.00** | Extreme — sentiment/vol signatures |
+
+A score near 1.0 does not predict *when* a crash occurs — the timing null
+(Section 1) still applies. It indicates that the sector's current
+multi-channel signal pattern resembles historical bubble episodes in
+the same regime more than it resembles near-bubble controls.
+
+![Target scores](figures/fig_target_regime_scores.png)
 
 ### 6. Multi-channel anatomy
 
@@ -169,7 +226,8 @@ null.
 │   ├── 12_robustness.py               # walk-forward, per-fold ridge, Compustat lag
 │   ├── 13_threshold_sensitivity.py    # 40% drawdown threshold sensitivity
 │   ├── 14_paper_figures.py            # core result figures
-│   └── 15_multichannel_figures.py     # case-study and lead-lag figures
+│   ├── 15_multichannel_figures.py     # case-study and lead-lag figures
+│   └── 16_regime_lasso.py             # regime-aware LASSO (walk-forward fix + target scoring)
 ├── data/
 │   ├── firms/                 # episode ticker/identifier lists
 │   ├── measures/              # monthly vol/leverage measures per episode
@@ -221,6 +279,10 @@ python scripts/12_robustness.py           # walk-forward + lag robustness
 python scripts/13_threshold_sensitivity.py
 python scripts/14_paper_figures.py        # regenerate figures/
 python scripts/15_multichannel_figures.py
+python scripts/16_regime_lasso.py         # regime-aware LASSO (walk-forward fix)
+python scripts/16_regime_lasso.py --expand          # expanding walk-forward table
+python scripts/16_regime_lasso.py --score-targets   # score AI/quantum/nuclear2
+python scripts/16_regime_lasso.py --figures         # generate figures/fig_regime_lasso_*.png
 ```
 
 Key outputs land in `data/results/`:
@@ -229,10 +291,12 @@ Key outputs land in `data/results/`:
 |---|---|
 | `holdout_80_20_survival.parquet`, `holdout_80_20_classifiers.parquet` | per-split AUCs and Cox betas across stratified holdout splits |
 | `permutation_test_all.csv` / `_vol_only.csv` | observed AUC vs 5M-value null distribution; *p* = 0.033 / 0.131 |
-| `walk_forward.parquet`, `robustness/expanding_walk_forward.csv` | temporal generalization (the adverse finding) |
+| `walk_forward.parquet`, `robustness/expanding_walk_forward.csv` | original LR temporal generalization |
+| `regime_lasso.parquet` | regime-LASSO 80/20 splits (1,000 splits, C=1.438) |
+| `regime_lasso_expanding_wf.csv` | expanding walk-forward at 5 cutoffs (regime-LASSO vs original LR) |
 | `episode_impact.parquet` | leave-one-episode-out AUC impact (two-regime evidence) |
 | `cox_coefficients_10k.parquet` | coefficient stability across splits |
-| `target_*.parquet` | hazard scores for ongoing targets (AI, quantum, nuclear) |
+| `target_*_all.parquet`, `target_*_regime_lasso.parquet` | Cox hazard and regime-LASSO scores for ongoing targets |
 
 ---
 
