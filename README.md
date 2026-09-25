@@ -105,19 +105,27 @@ across holdout splits). Red bars exclude zero.
 
 ### 4. Walk-forward arc: failure, diagnosis, fix
 
-The original 23-feature LR failed every temporal cutoff: the un-fitted
-baseline won each time. Diagnosing why led directly to the fix.
+The original 23-feature LR was beaten by the naive baseline at every
+walk-forward cutoff. The problem: two mechanistically distinct bubble types
+(leverage vs. mania) were being forced into one model, so the signal
+averaged out.
 
-**The failure:** a single linear model with 23 features and n=69 episodes
-cannot separate the two regimes from noise. It overfits in-sample and
-generalizes to chance out-of-sample.
+**The fix had three parts:**
 
-**The fix:** encode the regime explicitly. Map each episode's catalog
-category to one of two regimes (leverage = financial/capex;
-mania = mania/commodity), build a 47-feature matrix (23 base metrics + a
-regime indicator + 23 base x regime interactions), and select regularization
-strength via leave-one-episode-out CV (LASSO logistic). C is selected on
-the training set only at each cutoff (no leakage).
+1. **Regime encoding.** Each episode gets a binary label — leverage
+   (financial/capex crashes) or mania (sentiment/commodity crashes) —
+   from the catalog. That label becomes a feature (`regime_mania = 0 or 1`).
+
+2. **Interaction terms.** Every one of the 23 base metrics gets multiplied
+   by `regime_mania`, giving 23 interaction features. Total: 47 features.
+   This lets the model learn "metric A matters a lot in leverage regimes
+   but not in mania regimes" (or vice versa).
+
+3. **LASSO for selection.** With 47 features and only ~40-60 training
+   episodes, regularization is essential. LASSO zeros out features that
+   do not contribute within each regime. The regularization strength C is
+   chosen by leave-one-episode-out CV on the training set only at each
+   cutoff: no leakage.
 
 **The result:** walk-forward AUC at the main 2015 cutoff rises from
 0.758 (original LR) to **0.850** (+9pp), outperforming the naive
