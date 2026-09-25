@@ -1,30 +1,24 @@
 # Volatility Signatures of Speculative Bubbles
 
-**Two crash mechanisms, one model that knows the difference: identifying U.S. equity bubbles 1996–2024.**
-
 Samuel Magill — Erdős Institute Quant Finance Bootcamp, Summer 2026
 
----
+**Equity volatility, the standard bubble alarm, is statistically
+indistinguishable from noise (*p* = 0.131). The signal is in what companies
+choose not to say about their balance sheets — and right now, AI
+semiconductors, quantum computing, and nuclear energy all score at the top
+of the historical bubble distribution.**
 
-## What this project does
+This project builds a 28-year catalog of U.S. sector bubbles (27 episodes +
+42 near-misses), constructs 23 monthly metrics across equity, SEC filing, and
+credit channels, and trains a regime-aware classifier that separates leverage
+crashes (banks, homebuilders) from mania crashes (dotcom, crypto). A
+permutation-validated logistic model reaches AUC **0.844** (*p* = 0.033)
+against a naive baseline of 0.780 — but only once the two crash mechanisms are
+encoded explicitly. "Bubble" means a >40% sector drawdown within 24 months of
+a run-up peak; near-miss controls are sectors that rallied just as hard but did
+not crash.
 
-Most speculative bubbles only look obvious in hindsight. The question here is
-harder: given a sector mid-rally, pre-peak, can you tell whether it will crash
-or fade? Not in hindsight, not with post-peak data — just with what you could
-have known at the time.
-
-This repository builds a catalog of **27 U.S. bubble episodes** (dot-com, GFC
-banks, homebuilders, shale, SPACs, crypto-adjacent equities, meme stocks, ...)
-paired against **42 near-bubble controls** (sectors that rallied 50%+ but did
-*not* crash), constructs **23 monthly metrics** across three information
-channels, and evaluates identification under a strictly pre-peak,
-leakage-controlled protocol.
-
-**"Bubble" is defined operationally:** a >40% sector drawdown within 24 months
-of a run-up peak. Some bubbles bounce back, such as crypto. The definition is
-narrow by design: near-miss controls are hard, and that difficulty is the point.
-
-### Headline results
+### Results at a glance
 
 | Question | Answer |
 |---|---|
