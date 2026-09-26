@@ -4,7 +4,7 @@ Samuel Magill — Erdős Institute Quant Finance Bootcamp, Summer 2026
 
 **Equity volatility, the standard bubble alarm, is statistically
 indistinguishable from noise (*p* = 0.131). The signal is in what companies
-choose not to say about their balance sheets — and right now, AI
+choose not to say about their balance sheets -- and right now, AI
 semiconductors, quantum computing, and nuclear energy all score at the top
 of the historical bubble distribution.**
 
@@ -13,138 +13,71 @@ This project builds a 28-year catalog of U.S. sector bubbles (27 episodes +
 credit channels, and trains a regime-aware classifier that separates leverage
 crashes (banks, homebuilders) from mania crashes (dotcom, crypto). A
 permutation-validated logistic model reaches AUC **0.844** (*p* = 0.033)
-against a naive baseline of 0.780 — but only once the two crash mechanisms are
-encoded explicitly. "Bubble" means a >40% sector drawdown within 24 months of
-a run-up peak; near-miss controls are sectors that rallied just as hard but did
-not crash.
+against a naive baseline of 0.780 -- but only once the two crash mechanisms
+are encoded explicitly.
 
-### Results at a glance
-
-| Question | Answer |
-|---|---|
-| Can we identify which rallying sectors will crash? | **Yes, modestly.** LR with all 23 features: episode AUC **0.844** (permutation *p* = 0.033, 10,000 splits x 500 shuffles). Naive baseline (vol ratio alone): 0.780. |
-| Is equity volatility alone enough? | **No.** Vol-only features are indistinguishable from noise (*p* = 0.131). The SEC-text, credit, and interaction channels carry the significance. |
-| Can we time the crash? | **No.** The apparent month-level timing signal (AUC 0.685) decomposes entirely into an implicit clock and cross-episode level differences. Within fixed pre-peak windows, every feature is at chance. |
-| What predicts crashes? | Risk-disclosure language *reduces* crash risk (transparency helps); off-balance-sheet language (opacity) *increases* it; intra-sector correlation (herding) is noise; rising leverage signals expansion, not danger. |
-| Does the model generalize across time? | **Yes, once regime structure is explicit.** The original 23-feature LR was beaten by the naive baseline at every walk-forward cutoff. Incorporating the two-regime structure (leverage vs. mania) with LASSO regularization restores walk-forward AUC to **0.850** at the 2015 cutoff (+9pp vs. original LR, +7pp vs. naive). See Section 4. |
-| What do ongoing targets look like? | All three score high once AI is reclassified as mania (0.90) rather than capex (0.22). Quantum and Nuclear Renaissance II score near 1.0. See Section 7. |
-
-**Deeper dives:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
-reproduces every result below from the included data, and
+**Notebooks:** [`notebooks/01_main_results.ipynb`](notebooks/01_main_results.ipynb)
+reproduces every result from the included data.
 [`notebooks/02_case_studies.ipynb`](notebooks/02_case_studies.ipynb) walks
 through individual episodes channel by channel.
 
 ---
 
-## The story in seven figures
+### Results at a glance
 
-### 1. Identification: the baseline is the real benchmark
+| Question | Answer |
+|---|---|
+| Can we predict which rallying sectors will crash? | **Yes, modestly.** Episode AUC **0.844** (*p* = 0.033, 10K splits x 500 shuffles). Naive baseline: 0.780. |
+| Is volatility enough? | **No.** Vol-only *p* = 0.131 -- noise once the naive baseline is the comparator. |
+| Can we time the crash? | **No.** Month-level AUC decomposes entirely into a clock artifact. Within-episode timing is chance. |
+| What actually predicts crashes? | Risk-disclosure language *reduces* crash risk; off-balance-sheet opacity *increases* it; herding and rising leverage are uninformative. |
+| Does the model generalize? | **Yes, once regime structure is explicit.** Regime-LASSO walk-forward AUC = **0.850** at the 2015 cutoff (+9pp vs. original LR, +7pp vs. naive). |
+| Live targets? | AI semiconductors 0.90, nuclear renaissance 1.00, quantum computing 1.00 (as of 2024). |
 
-The question is episode-level: given a sector mid-rally, will it crash or fade?
-Two reference lines matter: **0.5** is chance, and **0.780** is a naive
-baseline that scores episodes by the single vol-ratio metric with *no fitting
-at all*. Any model has to beat the baseline, not chance — a model that just
-memorizes which sectors tend to be volatile would achieve 0.780 without learning
-anything structural.
+---
 
-![Episode AUC distributions](figures/fig_episode_auc_dist.png)
+## Two crash mechanisms
 
-Logistic regression with all 23 features reaches a median episode AUC of
-**0.844** — about 6pp above the baseline. Tree-based survival models plateau
-at the baseline; vol-only features sit *below* it. The regime-LASSO (47-feature,
-right panel) reaches a median of **0.875** across leverage-stratified 80/20
-splits. A permutation test (10,000 splits x 500 label shuffles, 5M null values)
-puts the full model at *p* = 0.033. Vol-only features fail at *p* = 0.131:
-equity volatility alone carries no episode-level signal above what the naive
-baseline already captures.
-
-### 2. Two crash mechanisms
-
-Not all bubbles crash for the same reason, and that turns out to matter for
-prediction. **Leverage bubbles** (banks, homebuilders, shale) are debt-funded
-and crash through balance-sheet stress: when the asset value drops, the equity
-is wiped out. **Mania bubbles** (crypto, SPACs, dotcom) are equity-funded and
-crash by sentiment reversal: no debt covenant triggers the fall, just a
-collective change of mind. Sector median leverage L = D/(D+E) cleanly separates
-them: leverage bubbles cluster at L > 0.4, mania bubbles at L near zero.
+**Leverage bubbles** (banks, homebuilders, shale) are debt-funded and crash
+through balance-sheet stress. **Mania bubbles** (crypto, SPACs, dotcom) are
+equity-funded and crash by sentiment reversal. Sector median leverage
+*L* = D/(D+E) cleanly separates them: leverage episodes cluster at *L* > 0.4,
+mania near zero. A model trained on both without encoding this distinction
+averages across two incompatible linear programs and fails out-of-sample.
 
 ![CVaR and episode impact](figures/fig_cvar_and_impact.png)
 
-The per-episode LOO impact analysis makes this split concrete. Holding out
-*fang* (mania bubble) drops AUC by 0.13 — the model genuinely needs it.
-Holding out *crypto* (mania bubble) *improves* AUC by 0.07 — crypto is
-out-of-distribution for a capital-structure model. Both episodes are mania
-bubbles, but the model treats them differently because fang's filing signatures
-match the training distribution and crypto's don't.
+Leave-one-episode-out impact analysis makes the split concrete without
+imposing it: *fang* (mania) removal drops AUC by 0.13; *crypto* (mania)
+removal *improves* AUC by 0.07 because crypto is out-of-distribution for a
+capital-structure model. The regime boundary emerges from the data.
 
-![Regime motivation](figures/fig_regime_motivation.png)
+---
 
-The left panel plots per-episode LOO impact against sector leverage. The regime
-split falls out of this analysis — no regime label was imposed to produce it.
-The right panel shows leverage distributions by regime: the two populations
-barely overlap. The regime split is empirical, not asserted.
+## What predicts crashes (not what theory suggests)
 
-This is an honest assessment of the model's scope. It is a **leveraged-fragility
-detector** first, a mania detector second. The observation directly motivates
-the regime-aware LASSO in Section 4: encoding the regime explicitly lets the
-model learn separate linear programs for each crash mechanism rather than
-averaging across them.
-
-### 3. What predicts crashes is not what theory suggests
-
-Standard bubble theory points to herding (rising intra-sector correlation),
-rising leverage, and accelerating risk. The data disagrees with all three.
-Cox proportional-hazards coefficients below show medians and 95% intervals
-across holdout splits; red bars exclude zero.
+Cox PH coefficients below show medians and 95% intervals across holdout
+splits; red bars exclude zero.
 
 ![Cox coefficients](figures/fig_cox_coefficients.png)
 
-Four findings stand out, and none match the textbook story:
+- **Risk escalation language (K)** is the strongest predictor -- and it is *negative*. Firms that escalate risk disclosures in 10-K filings crash *less* often. Transparency is a safety valve.
+- **Off-balance-sheet language (J)** is the strongest *positive* predictor. Opacity about liabilities dominates every market signal.
+- **Intra-sector correlation (C)** -- the textbook herding signal -- is noise. Sectors herd during both bubbles and sustained growth phases.
+- **Rising leverage (F)** is *negative*: leverage growth marks expansion, not danger. The crash signal comes from leverage *level* interacted with vol, not the rate of change.
 
-- **Risk-escalation language (K)** is the strongest predictor — and it is
-  *negative*. Firms that escalate risk disclosures in their 10-K filings crash
-  *less* often. Transparency appears to be a safety valve, not a warning sign.
-- **Off-balance-sheet language (J)** is the strongest positive predictor.
-  Opacity about liabilities predicts crashes better than any market signal.
-- **Intra-sector correlation (C)** — the textbook "herding" signal — is noise.
-  Sectors herd during both bubbles and sustained growth phases; the signal
-  does not discriminate.
-- **Rising leverage (F)** is *negative*: leverage growth marks expansion, not
-  imminent danger. What matters is the leverage *level*, captured by the
-  interaction terms, not the rate of change.
+---
 
-### 4. Walk-forward arc: failure, diagnosis, fix
+## Walk-forward: failure, diagnosis, fix
 
 The original 23-feature LR was beaten by the naive baseline at every
-walk-forward cutoff. The problem: two mechanistically distinct bubble types
-(leverage vs. mania) were being forced into one model, so the signal
-averaged out.
+walk-forward cutoff -- a structural failure from forcing two mechanistically
+distinct crash types into one model.
 
-**The fix had three parts:**
-
-1. **Regime encoding.** Each episode gets a binary label — leverage
-   (financial/capex crashes) or mania (sentiment/commodity crashes) —
-   from the catalog. That label becomes a feature (`regime_mania = 0 or 1`).
-
-2. **Interaction terms.** Every one of the 23 base metrics gets multiplied
-   by `regime_mania`, giving 23 interaction features. Total: 47 features.
-   This lets the model learn "metric A matters a lot in leverage regimes
-   but not in mania regimes" (or vice versa).
-
-3. **LASSO for selection.** With 47 features and only ~40-60 training
-   episodes, regularization is essential. LASSO zeros out features that
-   do not contribute within each regime. The regularization strength C is
-   chosen by leave-one-episode-out CV on the training set only at each
-   cutoff: no leakage.
-
-**The result:** walk-forward AUC at the main 2015 cutoff rises from
-0.758 (original LR) to **0.850** (+9pp), outperforming the naive
-baseline of 0.780 (+7pp).
-
-![Walk-forward](figures/fig_regime_lasso_wf.png)
-
-Full expanding walk-forward comparison (train on episodes peaked before
-cutoff, test on later ones):
+**Fix:** add a binary regime indicator and 23 metric x regime interaction
+terms (47 features total), then use LASSO with LOO-CV C selection on the
+training set at each cutoff to zero out features that do not contribute
+within each regime.
 
 | Cutoff | N train | Orig LR | Regime-LASSO | Mania | Leverage | Note |
 |--------|---------|---------|--------------|-------|----------|------|
@@ -154,86 +87,67 @@ cutoff, test on later ones):
 | 2015-01 | 27 | 0.758 | **0.850** | 0.919 | 0.857 | |
 | 2018-01 | 34 | 0.723 | 0.712 | 0.707 | 0.538 | |
 
-Early cutoffs (n < 25) degrade: with 47 features and n=16-20 training
-episodes, LOO-CV cannot reliably select the regularization strength and
-over-aggressively zeros out nearly all features. This is a documented
-constraint of the method, not a post-hoc patch; the boundary (n=25
-training episodes) follows from the feature dimension, not from which
-rows look bad.
+Early cutoffs degrade because LOO-CV cannot reliably select regularization
+strength with fewer than ~25 training episodes and 47 features. This is a
+documented constraint of the method, not a post-hoc patch.
 
-### 5. Multi-channel anatomy
+---
 
-The three information channels — equity vol structure, SEC filing language, and
-credit-implied vol — are not measuring the same thing. That is by design, and
-it is what makes the combination work. The case study figure below shows four
-leverage bubbles through all three channels, aligned on months relative to the
-run-up peak (red line).
+## Robustness
 
-![Multi-channel case studies](figures/fig7_multichannel_cases.png)
+Four checks were run; none changes the headline result.
 
-No single channel is reliable on its own — equity vol, for instance, often
-stays calm deep into the bubble while credit spreads slowly widen and filing
-language darkens. The GFC banks panel illustrates this most clearly. The
-channels disagree, and that disagreement is the signal: a sector where equity
-vol is calm but credit stress is rising and opacity is increasing sits in a
-structurally different position than one where all channels are quiet.
-
-Lead-lag cross-correlations between channels confirm why:
-
-![Lead-lag cross-correlations](figures/fig9_lead_lag.png)
-
-Cross-correlations are modest and roughly symmetric — no channel consistently
-leads another. This is the same message as the timing null: the channels carry
-complementary *cross-sectional* information (which sectors are fragile) rather
-than *sequential* information (when the crash will come). Combining them
-improves identification; using any single one for timing does not work.
-
-### 6. Robustness
-
-Two choices embedded in the design could be questioned, and both are tested
-directly.
-
-**The 40% drawdown definition.** The boundary between "bubble" and "near-bubble"
-is arbitrary. Sweeping it from 30% to 50% relabels borderline episodes at each
-threshold and reshuffles the training set. Median AUC stays above 0.82 for
-thresholds of 35-50%, confirming the result is not tuned to the 40% cutoff.
+**1. Threshold sensitivity** (`scripts/13_threshold_sensitivity.py`).
+Sweeping the 40% drawdown threshold from 30% to 50% in 5pp steps, episode
+AUC stays above 0.82 for all thresholds 35% and above (variation < 0.01).
+The only meaningful sensitivity is at the 30% boundary, where borderline
+episodes shift classification (AUC change ±0.03).
 
 ![Threshold sensitivity](figures/fig_robustness_threshold.png)
 
-**Reporting delays.** Compustat fundamentals are published with a lag; using
-them on the publication date rather than the filing date could introduce
-look-ahead. Lagging all Compustat inputs by 0-90 days leaves AUC flat
-(see `figures/fig_robustness_compustat_lag.png`). The signal is not coming
-from data that was unavailable at the time.
+**2. Compustat filing lag** (`scripts/12_robustness.py`).
+Lagging all Compustat-derived inputs by 0, 30, 60, and 90 days before panel
+alignment, episode AUC is flat across all four specifications (difference
+< 0.005). The signal is not coming from data that was unavailable at the time.
 
-### 7. Ongoing targets
+**3. Alternative classifiers** (`scripts/10_alternative_models.py`).
+Same feature set and episode labels as the main LR (AUC = 0.844):
+Bayesian logistic regression (PyMC, N(0,1) priors) = 0.800;
+XGBoost (100 trees, depth 3) = 0.756;
+three-state HMM = 0.576 (near chance for mania episodes);
+CUSUM = 0.669.
+None matches the plain logistic regression. The HMM result confirms the
+vol-only null: latent volatility states alone carry no crash-predictive
+information once leverage context is removed.
 
-Regime-LASSO bubble probability for three ongoing speculative sectors,
-scored using the full-sample trained model. Each trajectory is a rolling
-12-month trailing mean of the 47-feature vector. Reference lines are the
-full-sample LOO bubble median (0.79) and near-bubble IQR (0.02-0.32) across
-all 69 training episodes.
+**4. Alternative text features** (`scripts/21_embed_minilm.py`,
+`scripts/22_minilm_ridge_comparison.py`).
+MiniLM sentence embeddings (384-dim), reduced to 10 principal components
+via PCA, fed into the same logistic regression. Episode AUC is within 0.01
+of the Loughran-McDonald result across all CV splits (*r* = 0.65 between
+predicted and LM-derived scores). The LM dictionary is retained for the
+primary specification because it preserves direct theoretical
+interpretability: *K* maps to Uncertainty/Risk Factor word lists and *J*
+maps to Litigious/Negative in off-balance-sheet contexts.
 
-| Target | Regime | Latest score (2024-12) | Reading |
-|--------|--------|------------------------|---------|
+---
+
+## Live targets
+
+Regime-LASSO bubble probability scored using the full-sample model.
+Reference lines: bubble median 0.79; near-bubble IQR 0.02-0.32.
+
+| Target | Regime | Score (2024-12) | Reading |
+|--------|--------|-----------------|---------|
 | AI Semiconductors | mania | **0.90** | Deep in historical bubble zone |
 | Nuclear Renaissance II | leverage (capex) | **1.00** | Extreme: balance-sheet stress signatures |
 | Quantum Computing | mania | **1.00** | Extreme: sentiment/vol signatures |
 
-**Note on AI's regime assignment:** the catalog originally classified AI as
-"capex" (leverage regime) because NVDA/AMD have real datacenter capex
-intensity. But the dominant crash mechanism would be sentiment reversal —
-the same as dotcom, crypto, and SPACs — not balance-sheet stress: these firms
-carry strong balance sheets with minimal debt. Reclassifying AI as "mania"
-raises its score from 0.22 to 0.90. The mania-regime features (extreme vol
-ratio, narrative-driven filings, low leverage) match far better than the
-leverage-regime ones did. The 0.22 score was not a signal about AI; it was
-the model correctly noticing that AI firms do not look like GFC banks.
-
-A score near 1.0 does not predict *when* a crash occurs: the timing null
-(Section 1) still applies. It indicates that the sector's current multi-channel
-signal pattern resembles historical bubble episodes in the same regime more
-than it resembles near-bubble controls.
+AI was reclassified mania (from capex) because the dominant crash mechanism
+would be sentiment reversal: NVDA/AMD carry minimal debt. The capex score was
+0.22 -- the model correctly noting AI firms don't look like GFC banks.
+These are identification scores, not timing forecasts: the timing null still
+applies.
 
 ![Target scores](figures/fig_target_regime_scores.png)
 
@@ -241,19 +155,11 @@ than it resembles near-bubble controls.
 
 ## The 23 metrics (three channels)
 
-The three channels are designed to capture different aspects of fragility.
-Equity-structural metrics measure the volatility and leverage signatures
-visible in market prices. SEC textual metrics measure what management is
-actually saying about risk, opacity, and growth in regulatory filings. Credit-
-implied vol converts bond spreads into an equity-vol-equivalent using the
-Merton model, giving a credit-market view of the same firms.
-
 | Channel | Metrics | Source |
 |---|---|---|
-| **Equity-structural (A-F)** | vol ratio, leverage-adjusted vol gap, intra-sector correlation, vol-of-vol, investment intensity, leverage trajectory | CRSP daily returns, Compustat fundamentals; Merton de-levering sigma_A = sigma_E(1-L) |
-| **SEC textual (G-N)** | sentiment, uncertainty, readability, off-balance-sheet language, risk escalation, growth narrative, filing length trend, negativity | 5,166 10-K/10-Q filings via EDGAR; Loughran-McDonald dictionaries + custom lexicon |
-| **Credit-implied vol (O-S)** | bond-CIV (Merton-inverted TRACE spreads); **text-CIV** (novel): ridge from NLP features to spreads (out-of-fold R² = 0.27), Merton-inverted with actual leverage; extends CIV coverage from 59% to 100% of episodes (validates at r = 0.65 vs bond-CIV, see `figures/fig_text_vs_bond_civ.png`) | TRACE via WRDS; SEC filings |
-| **Interactions (U-X)** | leverage level, fragility vol (A*L), mania vol (A*(1-L)), fragility instability (D*L) | derived from above |
+| **Equity-structural (A-F, U-X)** | vol ratio, lev-adjusted vol gap, intra-sector correlation, vol-of-vol, investment intensity, leverage trajectory; four leverage x vol interaction terms | CRSP daily returns, Compustat; Merton: σ_A = σ_E(1-L) |
+| **SEC textual (G-N)** | sentiment, uncertainty, readability, off-balance-sheet language, risk escalation, growth narrative, filing length trend, negativity | 5,166 10-K/10-Q filings via EDGAR; Loughran-McDonald dictionaries |
+| **Credit-implied vol (O-S)** | bond-CIV (Merton-inverted TRACE spreads); text-CIV: ridge from 44 NLP features to log spreads (R² = 0.27 OOF), Merton-inverted; extends coverage from 59% to 100% of episodes (*r* = 0.65 vs bond-CIV) | TRACE via WRDS; SEC filings |
 
 ---
 
@@ -271,62 +177,45 @@ Merton model, giving a credit-market view of the same firms.
 │   ├── vol_measures.py        #   realized vol, correlation, Merton de-levering
 │   ├── merton.py              #   Merton model spread <-> asset vol inversion
 │   ├── sec_nlp.py             #   Loughran-McDonald NLP feature extraction
-│   ├── text_civ.py            #   text-CIV ridge pipeline
-│   └── wrds_utils.py          #   WRDS connection helper
+│   └── text_civ.py            #   text-CIV ridge pipeline
 ├── scripts/                   # numbered pipeline (run in order)
-│   ├── 00_build_firm_lists.py         # episode -> ticker/CIK/gvkey mapping
-│   ├── 01_fetch_sec.py (+01b, 01c)    # EDGAR filing download        [no WRDS needed]
-│   ├── 02_fetch_equity.py             # CRSP returns + Compustat     [WRDS]
-│   ├── 03_fetch_bond_civ.py           # TRACE spreads -> bond-CIV    [WRDS]
-│   ├── 04_compute_measures.py         # daily -> monthly vol measures
-│   ├── 05_compute_metrics.py          # the 23 metrics per episode
-│   ├── 06_align_panel.py              # peak-aligned train/test panels
-│   ├── 07_run_model.py                # Cox PH, RSF, LR, RF; holdout CV
-│   ├── 07b_timing_test.py             # timing decomposition and null result
-│   ├── 07c_run_parallel.py            # 10,000-split parallel holdout
-│   ├── 08_score_targets.py            # score ongoing targets (AI, quantum, nuclear)
-│   ├── 09_cvar_analysis.py            # CVaR tail analysis + per-episode impact
-│   ├── 10_alternative_models.py       # Bayesian LR, HMM, CUSUM
-│   ├── 11_permutation_test.py (+11b)  # label-shuffle significance test
-│   ├── 12_robustness.py               # walk-forward, per-fold ridge, Compustat lag
-│   ├── 13_threshold_sensitivity.py    # 40% drawdown threshold sensitivity
-│   ├── 14_paper_figures.py            # core result figures
-│   ├── 15_multichannel_figures.py     # case-study and lead-lag figures
-│   └── 16_regime_lasso.py             # regime-aware LASSO (walk-forward fix + target scoring)
+│   ├── 00-06                  #   data acquisition and panel construction [WRDS required]
+│   ├── 07_run_model.py        #   Cox PH, LR, RF; holdout CV
+│   ├── 07b_timing_test.py     #   timing null decomposition
+│   ├── 07c_run_parallel.py    #   10,000-split parallel holdout
+│   ├── 10_alternative_models.py  # Bayesian LR, HMM, CUSUM
+│   ├── 11_permutation_test.py #   5M-value null distribution
+│   ├── 12_robustness.py       #   walk-forward + Compustat lag
+│   ├── 13_threshold_sensitivity.py
+│   ├── 14-15                  #   figures
+│   ├── 16_regime_lasso.py     #   regime-aware LASSO (walk-forward fix + target scoring)
+│   ├── 17_power_analysis.py   #   bootstrap power: paired Wilcoxon vs naive
+│   ├── 18_bw_horse_race.py    #   Baker-Wurgler sentiment horse-race
+│   ├── 19_disclosure_mechanism.py  # K coefficient by regime + sector FE
+│   ├── 20_sector_fe.py        #   sector fixed-effects check
+│   ├── 21_embed_minilm.py     #   MiniLM sentence embeddings
+│   └── 22_minilm_ridge_comparison.py  # LM vs MiniLM AUC comparison
 ├── data/
-│   ├── firms/                 # episode ticker/identifier lists
-│   ├── measures/              # monthly vol/leverage measures per episode
-│   ├── metrics/               # the 23 metrics per episode (sector-month)
-│   ├── civ/                   # sector-level bond-CIV and text-CIV series
-│   ├── panels/                # final aligned train/test/target panels
-│   ├── multichannel/          # sector-level inputs for case-study figures
-│   └── results/               # all model outputs (see below)
-└── figures/                   # the paper's figures (PNG)
+│   ├── panels/                # final aligned train/test/target panels (included)
+│   ├── results/               # all model outputs (included)
+│   └── results/robustness/    # threshold, lag, walk-forward, MiniLM CSVs
+└── figures/                   # paper figures (PNG)
 ```
 
 ---
 
-## Data policy (what is and isn't in this repo)
+## Data policy
 
-**Included (~30 MB):** all *derived, sector-level* data: the 23 metrics,
-aligned panels, sector-median CIV series, and every model output. Everything
-needed to reproduce the modeling results (steps 06-16) **without any data
+**Included (~30 MB):** all derived, sector-level data: the 23 metrics,
+aligned panels, CIV series, and every model output. Everything needed to
+reproduce the modeling results (scripts 07-22) **without any data
 subscriptions**.
 
-**Not included:** raw inputs that are WRDS-licensed (CRSP daily returns,
-Compustat fundamentals, TRACE bond records, firm-level spread panels) or bulk
-(2 GB of raw EDGAR filing text). These are excluded via `.gitignore` and are
-rebuilt by scripts 00-03, which require a [WRDS](https://wrds-www.wharton.upenn.edu/)
-account (set the `WRDS_USERNAME` environment variable). EDGAR filings are
-public and fetched directly from the SEC (set your own contact email in
-`config.py:SEC_USER_AGENT` per SEC fair-access rules).
-
-Consequently:
-- **Full reproduction from raw data:** run scripts 00-16 in order (needs WRDS).
-- **Reproduction of all results in the paper:** run scripts 07-16 (or any
-  subset) against the included panels; no credentials needed.
-- One exception: the per-fold ridge check in `12_robustness.py` needs the
-  firm-level NLP-bond overlap sample (licensed); it skips gracefully if absent.
+**Not included:** WRDS-licensed inputs (CRSP, Compustat, TRACE) and bulk
+EDGAR filing text (~2 GB). Rebuilt by scripts 00-05, which require a
+[WRDS](https://wrds-www.wharton.upenn.edu/) account
+(`WRDS_USERNAME` environment variable). EDGAR filings are fetched directly
+from the SEC -- set `config.py:SEC_USER_AGENT` per SEC fair-access rules.
 
 ---
 
@@ -335,60 +224,48 @@ Consequently:
 ```bash
 pip install -r requirements.txt
 
-# Modeling from the included panels (no WRDS needed)
-python scripts/07_run_model.py            # holdout CV: Cox/RSF/LR/RF
-python scripts/07b_timing_test.py         # timing null result
-python scripts/07c_run_parallel.py        # 10,000-split evaluation
+# All modeling results from included panels (no WRDS needed)
+python scripts/07_run_model.py
+python scripts/07b_timing_test.py
+python scripts/07c_run_parallel.py
+python scripts/10_alternative_models.py
 python scripts/11_permutation_test.py --splits 10000 --perms 500
-python scripts/12_robustness.py           # walk-forward + lag robustness
+python scripts/12_robustness.py
 python scripts/13_threshold_sensitivity.py
-python scripts/14_paper_figures.py        # regenerate figures/
+python scripts/14_paper_figures.py
 python scripts/15_multichannel_figures.py
-python scripts/16_regime_lasso.py         # regime-aware LASSO (walk-forward fix)
+python scripts/16_regime_lasso.py
 python scripts/16_regime_lasso.py --expand          # expanding walk-forward table
 python scripts/16_regime_lasso.py --score-targets   # score AI/quantum/nuclear2
-python scripts/16_regime_lasso.py --figures         # generate figures/fig_regime_lasso_*.png
+python scripts/17_power_analysis.py
+python scripts/18_bw_horse_race.py
+python scripts/19_disclosure_mechanism.py
+python scripts/20_sector_fe.py
+python scripts/21_embed_minilm.py                   # requires sentence-transformers
+python scripts/22_minilm_ridge_comparison.py
 ```
 
-Key outputs land in `data/results/`:
+Key outputs in `data/results/`:
 
 | File | Contents |
 |---|---|
-| `holdout_80_20_survival.parquet`, `holdout_80_20_classifiers.parquet` | per-split AUCs and Cox betas across stratified holdout splits |
-| `permutation_test_all.csv` / `_vol_only.csv` | observed AUC vs 5M-value null distribution; *p* = 0.033 / 0.131 |
-| `walk_forward.parquet`, `robustness/expanding_walk_forward.csv` | original LR temporal generalization |
+| `holdout_80_20_classifiers.parquet` | per-split AUCs across stratified holdout splits |
+| `permutation_test_all.csv` / `_vol_only.csv` | observed AUC vs 5M-value null; *p* = 0.033 / 0.131 |
 | `regime_lasso.parquet` | regime-LASSO 80/20 splits (1,000 splits, C=1.438) |
-| `regime_lasso_expanding_wf.csv` | expanding walk-forward at 5 cutoffs (regime-LASSO vs original LR) |
-| `episode_impact.parquet` | leave-one-episode-out AUC impact (two-regime evidence) |
+| `regime_lasso_expanding_wf.csv` | expanding walk-forward at 5 cutoffs |
+| `episode_impact.parquet` | leave-one-episode-out AUC impact |
 | `cox_coefficients_10k.parquet` | coefficient stability across splits |
-| `target_*_all.parquet`, `target_*_regime_lasso.parquet` | Cox hazard and regime-LASSO scores for ongoing targets |
+| `robustness/threshold_sensitivity.csv` | AUC at 30-50% drawdown thresholds |
+| `robustness/compustat_lag.csv` | AUC at 0/30/60/90-day filing lags |
+| `robustness/minilm_ridge_comparison.csv` | LM vs MiniLM AUC comparison |
 
 ---
 
 ## Methodological safeguards
 
-Much of this project's contribution is negative-space: quantifying how easily
-this kind of analysis fools itself.
-
-1. **Pre-peak data only.** An earlier design that included post-peak data
-   inflated AUC to 0.875 and produced theory-friendly coefficients (rising
-   leverage, spiking correlation) that were pure artifacts of post-crash
-   liquidation. Removing contamination flipped both signs. This is the most
-   common failure mode in bubble studies.
-2. **Train-only statistics.** Standardization and imputation are fit on the
-   training fold only. Fitting on the full dataset lets the test set's
-   distribution inform the training transform, which is a subtle form of
-   leakage that compounds across many splits.
-3. **Leverage-stratified holdout.** Unstratified splits swing AUC 0.37-0.97
-   depending on which regime lands in the test set. A randomly assigned test
-   set of pure mania episodes evaluated on a leverage-trained model will look
-   terrible; the reverse looks great. Stratification makes the comparison fair.
-4. **Permutation testing.** 10,000 splits x 500 label shuffles builds a null
-   distribution from the actual data structure, not asymptotic theory. Vol-only
-   features fail this test; only the multi-channel model passes.
-5. **Honest negatives, disclosed.** No out-of-era edge under walk-forward;
-   signal concentrated in the late pre-peak window; Bonferroni-adjusted
-   *p* = 0.066 across the two feature sets tested.
-6. **Regime-aware regularization.** LOO-CV C selection is performed on
-   training episodes only at each walk-forward cutoff. The regime indicator
-   is encoded from catalog metadata, not derived from the data being modeled.
+1. **Pre-peak data only.** Including post-peak months inflated AUC to 0.875 and produced theory-friendly sign reversals that were pure crash-liquidation artifacts. Removing them flipped both signs back.
+2. **Train-only statistics.** Standardization and imputation fit on the training fold only. Fitting on the full dataset is a subtle leakage that compounds across many splits.
+3. **Leverage-stratified holdout.** Unstratified splits swing AUC 0.37-0.97 depending on which regime lands in the test set. Stratification makes the comparison fair.
+4. **Permutation testing.** 10,000 splits x 500 shuffles builds a null from the actual data structure, not asymptotic theory. Vol-only features fail (*p* = 0.131); the multi-channel model passes (*p* = 0.033).
+5. **Honest negatives, disclosed.** No out-of-era edge under walk-forward; signal concentrated in the late pre-peak window; Bonferroni-adjusted *p* = 0.066 across the two feature sets tested.
+6. **Regime-aware regularization.** LOO-CV C selection on training episodes only at each walk-forward cutoff. Regime indicator encoded from catalog metadata, not derived from the modeled data.
