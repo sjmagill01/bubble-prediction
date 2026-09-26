@@ -533,7 +533,17 @@ def score_targets(ep_df, base_cols, best_C_global):
         df.to_parquet(save_path, index=False)
         print(f"    Saved -> {save_path}")
 
-    return out
+    # Compute in-sample bubble scores by regime for percentile rank reference
+    X_tr, _, _ = build_X(ep_df, base_cols)
+    ep_probs = m.predict_proba(X_tr)[:, 1]
+    ep_tmp = ep_df.copy()
+    ep_tmp["_prob"] = ep_probs
+    bubble_scores = {}
+    for reg in ["mania", "leverage"]:
+        mask = (ep_tmp["is_bubble"] == 1) & (ep_tmp["regime"] == reg)
+        bubble_scores[reg] = ep_tmp.loc[mask, "_prob"].values
+
+    return out, bubble_scores
 
 
 # ── Figures ───────────────────────────────────────────────────────────────────
@@ -622,11 +632,17 @@ def fig_walk_forward_comparison():
     print(f"  Saved -> {out_path}")
 
 
-def fig_target_scores(target_scores, ep_df):
+def fig_target_scores(target_scores, ep_df, bubble_scores=None):
     """
-    3-panel figure: rolling regime-LASSO bubble probability for each target.
-    Reference lines show bubble/near-bubble median scores from training.
+    6-panel figure (2 rows x 3 cols):
+      Top row:    raw regime-LASSO probability -- shows logistic saturation
+                  pinning to 1.0 for Nuclear and Quantum.
+      Bottom row: percentile rank within regime-matched confirmed-bubble
+                  training distribution -- resolves the saturation.
+    If bubble_scores (dict regime -> array of training bubble probs) is not
+    provided, only the top row is drawn.
     """
+    from scipy.stats import percentileofscore
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -635,49 +651,88 @@ def fig_target_scores(target_scores, ep_df):
         print("  No target scores to plot.")
         return
 
-    # Compute reference scores from full-sample LOO predictions
-    # Use the 80/20 median AUC distribution as proxy: just show training medians
     plt.rcParams.update({
         "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
         "figure.dpi": 150, "savefig.bbox": "tight",
     })
 
     target_meta = {
-        "AI":       ("AI Semiconductors",      "leverage"),
-        "quantum":  ("Quantum Computing",       "mania"),
-        "nuclear2": ("Nuclear Renaissance II",  "leverage"),
+        "AI":       ("AI Semiconductors",     "mania"),
+        "quantum":  ("Quantum Computing",      "mania"),
+        "nuclear2": ("Nuclear Renaissance II", "leverage"),
     }
 
     eids = [e for e in ["AI", "quantum", "nuclear2"] if e in target_scores]
     if not eids:
         return
 
-    fig, axes = plt.subplots(1, len(eids), figsize=(4.5 * len(eids), 4))
-    if len(eids) == 1:
-        axes = [axes]
+    n_rows = 2 if bubble_scores else 1
+    fig, axes = plt.subplots(n_rows, len(eids),
+                             figsize=(4.5 * len(eids), 4 * n_rows),
+                             squeeze=False)
 
-    for ax, eid in zip(axes, eids):
-        df    = target_scores[eid].sort_values("date")
+    for col, eid in enumerate(eids):
+        df = target_scores[eid].sort_values("date")
         name, regime = target_meta.get(eid, (eid, "?"))
 
-        ax.plot(df["date"], df["lasso_prob"], lw=1.8, color="navy",
-                label="Regime-LASSO score")
+        # ── Row 0: raw probability ──────────────────────────────────────────
+        ax0 = axes[0][col]
+        ax0.plot(df["date"], df["lasso_prob"], lw=1.8, color="navy")
+        ax0.axhline(0.5, color="black", ls=":", lw=0.8)
+        ax0.fill_between(df["date"], 0.65, 1.05,
+                         alpha=0.07, color="red")
+        ax0.set_ylim(0, 1.08)
+        ax0.set_ylabel("Raw probability" if col == 0 else "")
+        ax0.set_title(f"{name}\n({regime} regime)")
+        ax0.tick_params(axis="x", rotation=30)
+        # Annotate pinning
+        latest_p = df["lasso_prob"].iloc[-1]
+        if latest_p > 0.99:
+            ax0.annotate("pins to 1.0", xy=(df["date"].iloc[-1], 1.0),
+                         xytext=(-60, -18), textcoords="offset points",
+                         fontsize=7, color="crimson",
+                         arrowprops=dict(arrowstyle="->", color="crimson", lw=0.8))
 
-        # Reference lines: median bubble and near-bubble scores from LOO
-        # (use a simple full-sample in-sample proxy)
-        ax.axhline(0.5, color="black", ls=":", lw=0.8, label="50% threshold")
-        ax.fill_between(df["date"], 0.65, 1.0,
-                        alpha=0.07, color="red",
-                        label="Historical bubble zone (>0.65)")
+        # ── Row 1: percentile rank ──────────────────────────────────────────
+        if bubble_scores:
+            ax1 = axes[1][col]
+            ref = bubble_scores.get(regime, np.array([]))
+            if len(ref) == 0:
+                ax1.text(0.5, 0.5, "No reference data",
+                         ha="center", va="center", transform=ax1.transAxes)
+            else:
+                pcts = np.array([
+                    percentileofscore(ref, p, kind="weak")
+                    for p in df["lasso_prob"]
+                ])
+                ax1.plot(df["date"], pcts, lw=1.8, color="darkorange")
+                ax1.axhline(50, color="black", ls=":", lw=0.8)
+                ax1.fill_between(df["date"], 75, 105,
+                                 alpha=0.07, color="red")
+                ax1.set_ylim(0, 108)
+                ax1.set_ylabel("Percentile (regime bubbles)" if col == 0 else "")
+                ax1.tick_params(axis="x", rotation=30)
+                latest_pct = pcts[-1]
+                # OOD annotation for sectors above training range
+                if latest_pct >= 100:
+                    ax1.axhline(100, color="crimson", ls="--", lw=0.9)
+                    ax1.text(df["date"].iloc[len(df)//2], 101.5,
+                             "above training range", fontsize=7,
+                             color="crimson", ha="center")
+                else:
+                    ax1.annotate(f"{latest_pct:.0f}th pct",
+                                 xy=(df["date"].iloc[-1], latest_pct),
+                                 xytext=(-55, 8), textcoords="offset points",
+                                 fontsize=7, color="darkorange",
+                                 arrowprops=dict(arrowstyle="->",
+                                                 color="darkorange", lw=0.8))
 
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Bubble probability")
-        ax.set_ylim(0, 1.05)
-        ax.set_title(f"{name}\n(regime: {regime})")
-        ax.legend(fontsize=7)
-        ax.tick_params(axis="x", rotation=30)
+    row_labels = ["Raw probability\n(logistic saturation visible)",
+                  "Percentile rank within regime-matched\nconfirmed-bubble distribution"]
+    for r, label in enumerate(row_labels[:n_rows]):
+        axes[r][0].set_ylabel(label, fontsize=8)
 
-    plt.suptitle("Regime-LASSO Scores for Ongoing Targets", y=1.01, fontsize=10)
+    plt.suptitle("Regime-LASSO Live Target Scores (2024-Q4)", y=1.01, fontsize=10)
     plt.tight_layout()
     out_path = FIGURES_DIR / "fig_target_regime_scores.png"
     plt.savefig(out_path)
@@ -846,15 +901,15 @@ def main(smoke=False, expand=False, score_targets_flag=False, figures=False):
 
     if score_targets_flag:
         print("\nScoring targets with Regime-LASSO...")
-        target_scores = score_targets(ep_df, agg_cols, best_C_global)
+        target_scores, _ = score_targets(ep_df, agg_cols, best_C_global)
         return
 
     if figures:
         print("\nGenerating figures...")
         fig_walk_forward_comparison()
         # Score targets for the figure (quick pass)
-        target_scores = score_targets(ep_df, agg_cols, best_C_global)
-        fig_target_scores(target_scores, ep_df)
+        target_scores, bubble_scores = score_targets(ep_df, agg_cols, best_C_global)
+        fig_target_scores(target_scores, ep_df, bubble_scores=bubble_scores)
         return
 
     # Default: full run
