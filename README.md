@@ -32,7 +32,7 @@ through individual episodes channel by channel.
 | Can we time the crash? | **No.** Month-level AUC decomposes entirely into a clock artifact. Within-episode timing is chance. |
 | What actually predicts crashes? | Risk-disclosure language *reduces* crash risk; off-balance-sheet opacity *increases* it; herding and rising leverage are uninformative. |
 | Does the model generalize? | **Yes, once regime structure is explicit.** Regime-LASSO walk-forward AUC = **0.850** at the 2015 cutoff (+9pp vs. original LR, +7pp vs. naive). |
-| Live targets? | AI semiconductors 0.90, nuclear renaissance 1.00, quantum computing 1.00 (as of 2024). |
+| Live targets? | AI 71st pct (mania), Quantum 94th pct (mania), Nuclear out-of-training-range (leverage) -- reported as percentile ranks because raw logistic probabilities saturate to 1.00 for extreme inputs. |
 
 ---
 
@@ -134,18 +134,34 @@ maps to Litigious/Negative in off-balance-sheet contexts.
 
 ## Live targets
 
-Regime-LASSO bubble probability scored using the full-sample model.
-Reference lines: bubble median 0.79; near-bubble IQR 0.02-0.32.
+Scores are expressed as **percentile ranks within the regime-matched
+confirmed-bubble training distribution**, not as raw model probabilities.
+The distinction matters: logistic regression outputs sigmoid(z), which
+saturates to 1.00 whenever the linear predictor z is large -- regardless
+of how much larger it is than any training observation. Two of the three
+targets trigger this saturation. A raw score of 1.00 conveys only "more
+extreme than the training set"; it does not imply higher crash probability
+than 0.95, because the model has no resolution in that region. Percentile
+ranks are computed as rank(p_target; {p_b : b in regime-matched bubbles})
+and are bounded by the training distribution rather than the logistic
+ceiling.
 
-| Target | Regime | Score (2024-12) | Reading |
-|--------|--------|-----------------|---------|
-| AI Semiconductors | mania | **0.90** | Deep in historical bubble zone |
-| Nuclear Renaissance II | leverage (capex) | **1.00** | Extreme: balance-sheet stress signatures |
-| Quantum Computing | mania | **1.00** | Extreme: sentiment/vol signatures |
+| Target | Regime | Percentile (2024-12) | Raw prob | Reading |
+|--------|--------|----------------------|----------|---------|
+| AI Semiconductors | mania | **71st** | 0.90 | 29% of historical mania bubbles scored higher |
+| Quantum Computing | mania | **94th** | 0.995 | Above dotcom peak; within training range |
+| Nuclear Renaissance II | leverage | **out of range** | 1.000 | Exceeds training max (0.961); model extrapolating |
+
+Nuclear Renaissance II's feature vector lies outside the convex hull of
+the leverage-episode training support -- its balance-sheet configuration
+is more extreme than any confirmed leverage bubble in the training set.
+The out-of-range flag is itself a signal, but the raw probability provides
+no quantitative resolution beyond that.
 
 AI was reclassified mania (from capex) because the dominant crash mechanism
-would be sentiment reversal: NVDA/AMD carry minimal debt. The capex score was
-0.22 -- the model correctly noting AI firms don't look like GFC banks.
+would be sentiment reversal: NVDA/AMD carry minimal debt. The capex score
+was the 12th percentile of the leverage-episode distribution -- the model
+correctly finding no balance-sheet stress because none exists.
 These are identification scores, not timing forecasts: the timing null still
 applies.
 
